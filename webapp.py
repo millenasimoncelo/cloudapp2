@@ -30,7 +30,7 @@ with st.expander("📖 Entenda a relação entre o IDEB observado e a meta"):
 
 with st.expander("ℹ️ Sobre o app / dados utilizados"):
     st.write("Tema: comparação do IDEB observado com a Meta prevista, por etapa (Anos Iniciais/Finais/Médio).")
-    st.write("Base atual: INEP (Resultados do IDEB extraídos em 15/10/2025 de https://www.gov.br/inep/pt-br/areas-de-atuacao/pesquisas-estatisticas-e-indicadores/ideb/resultados)")
+    st.write("Base atual: INEP (IDEB – escolas dos municípios do Espírito Santo)")
 
 # ------------------------------
 # Carregamento da base
@@ -175,34 +175,54 @@ with tab_graf:
             )
             st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
-# RANKING — apenas IDEB 2021 e só por escola
+# ---------------------------
+# ABA — Ranking
+# ---------------------------
 with tab_rank:
-    st.subheader("🏅 Ranking — Escolas com melhor IDEB em 2021")
+    st.subheader("🏅 Ranking de Escolas por Etapa (IDEB 2021)")
 
-    # filtra somente IDEB 2021 e remove missing
-    df_2021 = df_f[df_f["Ano"] == 2021].dropna(subset=["Resultado"])
+    # Filtra apenas o ano de 2021 e remove valores ausentes
+    df_2021 = df_f[df_f["Ano"] == 2021].dropna(subset=["Resultado", "Etapa", "Escola"])
 
     if df_2021.empty:
-        st.warning("Não há dados disponíveis de 2021 após aplicar os filtros.")
+        st.info("Não há dados disponíveis para o ano de 2021 com os filtros selecionados.")
     else:
-        ranking = (
-            df_2021.groupby("Escola")["Resultado"]
-            .mean()
-            .sort_values(ascending=False)
-            .reset_index()
-        )
+        etapas = df_2021["Etapa"].dropna().unique()
 
-        st.markdown("**Classificação geral das escolas (IDEB 2021):**")
-        st.dataframe(ranking, use_container_width=True)
+        for etapa in etapas:
+            st.markdown(f"### 🎓 {etapa}")
+            df_etapa = df_2021[df_2021["Etapa"] == etapa].copy()
 
-        st.markdown("**Top 10 escolas com melhores resultados:**")
-        fig = px.bar(
-            ranking.head(10),
-            x="Resultado",
-            y="Escola",
-            orientation="h",
-            title="Top 10 Escolas — IDEB 2021",
-            color_discrete_sequence=["#1f77b4"]
-        )
-        fig.update_layout(yaxis=dict(autorange="reversed"))
-        st.plotly_chart(fig, use_container_width=True)
+            # Ordena do maior para o menor IDEB
+            ranking = (
+                df_etapa.groupby("Escola")["Resultado"]
+                .mean()
+                .sort_values(ascending=False)
+                .reset_index()
+            )
+
+            # Mostra tabela
+            st.dataframe(ranking, use_container_width=True)
+
+            # Gráfico de barras decrescente (Top 10)
+            top10 = ranking.head(10)
+            fig = px.bar(
+                top10,
+                x="Resultado",
+                y="Escola",
+                orientation="h",
+                text="Resultado",
+                color="Resultado",
+                color_continuous_scale="Blues",
+                title=f"Top 10 Escolas — {etapa}",
+            )
+            fig.update_traces(texttemplate="%{text:.2f}", textposition="outside")
+            fig.update_layout(
+                xaxis_title="IDEB 2021",
+                yaxis_title=None,
+                yaxis={"categoryorder": "total ascending"},
+                coloraxis_showscale=False,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.markdown("---")
